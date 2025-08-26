@@ -44,13 +44,16 @@ latest_frame_bgr: Optional[np.ndarray] = None
 face_model = None
 audio_model = None
 labels = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
+NUM_AUDIO_CLASSES = len(labels)  # 7 when we merge calm->neutral
+
 
 @app.on_event("startup")
 def _load_models():
     global face_model, audio_model
     face_model = load_face_model(os.getenv("FACE_WEIGHTS", ""))
-    audio_model = load_audio_model(os.getenv("AUDIO_WEIGHTS", ""))
+    audio_model = load_audio_model(os.getenv("AUDIO_WEIGHTS", ""), num_classes=NUM_AUDIO_CLASSES)
     print("[startup] Models ready.")
+
 
 @app.get("/")
 async def root():
@@ -113,7 +116,8 @@ async def websocket_endpoint(ws: WebSocket):
                 if len(audio_buffer) >= int(0.5 * AUDIO_SR):  # need at least ~0.5s for MFCC
                     audio_out = run_audio_inference(audio_model, audio_chunk, sr=AUDIO_SR, labels=labels)
 
-                fused = fuse(face_out, audio_out, mode="weighted", w_voice=0.6)
+                fused = fuse(face_out, audio_out, labels=labels, mode="weighted", w_voice=0.6)
+
 
                 # Prepare top3 details
                 probs = np.array(fused["probs"], dtype=float)

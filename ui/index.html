@@ -2,59 +2,162 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Multimodal Emotion Assistant</title>
+<title>Multimodal Emotion Assistant AI</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  :root {
+  /* ---------- Theme ---------- */
+  :root{
+    --bg: #0b1020;
+    --card: rgba(18, 24, 51, 0.75);
+    --card-border: #222b55;
+    --text: #e7e9f3;
+    --text-dim: #b8c0e0;
+    --green: #22c55e; /* Start */
+    --green-weak: #16a34a;
+    --red: #ef4444;   /* Stop  */
+    --red-weak: #dc2626;
     --glow: 0px;
-    --glow-color: rgba(0, 200, 0, 0.8);
+    --glow-color: rgba(0, 200, 0, 0.85);
   }
-  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 20px; background: #0b1020; color: #e7e9f3; }
-  .row { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
-  #vidWrap {
-    position: relative; width: 480px; max-width: 90vw; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden;
+
+  /* ---------- Base ---------- */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body{
+    margin: 0; padding: 24px;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #1c2250 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #14234a 0%, transparent 60%),
+      radial-gradient(900px 700px at 30% 120%, #1d3a73 0%, transparent 60%),
+      var(--bg);
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; }
+  header { margin-bottom: 18px; }
+  h1{
+    margin: 0 0 6px 0; font-size: clamp(20px, 3.5vw, 28px);
+    letter-spacing: 0.2px;
+  }
+  .sub{ color: var(--text-dim); font-size: 14px; margin: 0; }
+
+  /* ---------- Layout ---------- */
+  .grid{
+    display: grid; gap: 20px;
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+  @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+
+  /* ---------- Panels ---------- */
+  .panel, .card{
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 30px rgba(8,12,28,0.35);
+  }
+
+  /* ---------- Video ---------- */
+  #vidWrap{
+    position: relative; width: 100%; aspect-ratio: 4/3;
+    border-radius: 16px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
     box-shadow: 0 0 var(--glow) var(--glow-color);
-    transition: box-shadow 120ms linear;
-    border: 2px solid rgba(255,255,255,0.1);
+    transition: box-shadow 120ms linear, transform 180ms ease;
   }
-  video { width: 100%; height: 100%; object-fit: cover; background: #000; }
-  canvas { display: none; }
-  button {
-    background: #5566ff; color: white; border: none; padding: 12px 16px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  #vidWrap:hover{ transform: translateY(-1px); }
+  video{ width: 100%; height: 100%; object-fit: cover; background: #000; }
+  canvas{ display: none; }
+
+  .controls{
+    margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
   }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .card { background: #121833; border: 1px solid #222b55; border-radius: 12px; padding: 12px 16px; min-width: 260px; }
-  .kvs { margin: 0; padding: 0; list-style: none; }
-  .kvs li { display: flex; justify-content: space-between; padding: 2px 0; }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #1a224a; border: 1px solid #2a3a7a; }
-  .label { font-weight: 700; }
-  .small { opacity: 0.8; font-size: 14px; }
+  .btn{
+    display: inline-flex; align-items: center; gap: 8px;
+    border: none; color: #fff; font-weight: 700; letter-spacing: 0.3px;
+    padding: 11px 16px; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.06);
+    transition: transform 80ms ease, filter 120ms ease, opacity 120ms ease;
+    user-select: none;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn:disabled{ opacity: 0.55; cursor: not-allowed; }
+  .btn-start{ background: linear-gradient(180deg, var(--green) 0%, var(--green-weak) 100%); }
+  .btn-start:hover{ filter: brightness(1.03); }
+  .btn-stop{  background: linear-gradient(180deg, var(--red) 0%, var(--red-weak) 100%); }
+  .btn-stop:hover{ filter: brightness(1.03); }
+
+  /* ---------- Info ---------- */
+  .stack{ display: grid; gap: 14px; }
+
+  .row{
+    display: grid; grid-template-columns: 110px 1fr;
+    gap: 10px; align-items: center;
+  }
+  .label{ color: var(--text-dim); font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.6px; }
+  .value{ font-weight: 700; }
+
+  .badge{
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #101739; border: 1px solid #2a3a7a; color: #cfe0ff;
+    padding: 8px 10px; border-radius: 999px; font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .pill{
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    background: #122457; border: 1px solid #2a3a7a; color: #cfe0ff; font-size: 12px;
+  }
+
+  .kvs{ margin: 0; padding: 0; list-style: none; }
+  .kvs li{
+    display: grid; grid-template-columns: 1fr auto; gap: 10px;
+    padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.06);
+  }
+  .kvs li:last-child{ border-bottom: none; }
 </style>
 </head>
 <body>
-  <h2>Multimodal Emotion Assistant</h2>
-  <p class="small">One button to start audio + video. The green halo grows with volume; red means no audio.</p>
+  <div class="container">
+    <header>
+      <h1>Multimodal Emotion Assistant AI</h1>
+      <p class="sub">Live face + voice analysis. Click <strong>Start</strong> and allow mic/camera.</p>
+    </header>
 
-  <div class="row">
-    <div>
-      <div id="vidWrap"><video id="video" autoplay playsinline muted></video></div>
-      <div style="margin-top: 10px;">
-        <button id="startBtn">Start</button>
-        <button id="stopBtn" disabled>Stop</button>
-      </div>
-    </div>
+    <main class="grid">
+      <!-- Left: Video Panel -->
+      <section class="panel">
+        <div id="vidWrap"><video id="video" autoplay playsinline muted></video></div>
+        <div class="controls">
+          <button id="startBtn" class="btn btn-start">▶ Start</button>
+          <button id="stopBtn" class="btn btn-stop" disabled>■ Stop</button>
+        </div>
+      </section>
 
-    <div class="card">
-      <div><span class="label">Voice:</span> <span id="voiceLabel">—</span></div>
-      <div><span class="label">Face:</span> <span id="faceLabel">—</span></div>
-      <div><span class="label">Fused:</span> <span id="fusedLabel">—</span></div>
-      <hr/>
-      <div class="small">Top-3</div>
-      <ul class="kvs" id="topk"></ul>
-      <hr/>
-      <div class="small">Empathetic Reply</div>
-      <div id="reply" class="pill">—</div>
-    </div>
+      <!-- Right: Info Panel -->
+      <section class="stack">
+        <div class="card">
+          <div class="row">
+            <div class="label">Fused</div>
+            <div class="value"><span id="fusedLabel" class="badge">—</span></div>
+          </div>
+          <div class="row">
+            <div class="label">Voice</div>
+            <div class="value" id="voiceLabel">—</div>
+          </div>
+          <div class="row">
+            <div class="label">Face</div>
+            <div class="value" id="faceLabel">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="label">Top-5</div>
+          <ul class="kvs" id="topk"></ul>
+        </div>
+      </section>
+    </main>
   </div>
 
   <canvas id="cvs" width="640" height="480"></canvas>
@@ -73,16 +176,15 @@
   const voiceLabel = document.getElementById('voiceLabel');
   const fusedLabel = document.getElementById('fusedLabel');
   const topkEl = document.getElementById('topk');
-  const replyEl = document.getElementById('reply');
 
-  let ws = null, stream = null, anim = null, sendTimer = null;
-  let audioNode = null, workletNode = null, audioCtx = null;
+  // Keep this aligned with your server-side label order
+  const LABELS = ["Angry","Disgust","Fear","Happy","Neutral","Sad","Surprise"];
 
-  // Encode Int16 array to base64
-  function b64FromInt16(int16arr) {
-    return btoa(String.fromCharCode(...new Uint8Array(new Int16Array(int16arr).buffer)));
-  }
-  // Throttle frame capture to ~5 fps
+  let ws = null, stream = null, anim = null;
+  let audioCtx = null, workletNode = null;
+
+  function cap(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : "—"; }
+
   function startFrameLoop() {
     let last = 0;
     function step(ts) {
@@ -93,7 +195,7 @@
         ctx.drawImage(video, 0, 0, w, h);
         const dataURL = cvs.toDataURL('image/jpeg', 0.6);
         const jpeg_b64 = dataURL.split(',')[1];
-        ws.send(JSON.stringify({ jpeg_b64 })); // we can send without audio here; audio arrives via worklet messages
+        ws.send(JSON.stringify({ jpeg_b64 }));
       }
       anim = requestAnimationFrame(step);
     }
@@ -101,9 +203,8 @@
   }
 
   function setGlow(level) {
-    // level in [0,1], map to px; colour red if near zero
-    const px = Math.round(40 * level);
-    const color = (level < 0.05) ? 'rgba(220,0,0,0.85)' : 'rgba(0,200,0,0.8)';
+    const px = Math.round(44 * level);
+    const color = (level < 0.05) ? 'rgba(239,68,68,0.9)' : 'rgba(34,197,94,0.9)'; // red or green
     wrap.style.setProperty('--glow', px + 'px');
     wrap.style.setProperty('--glow-color', color);
   }
@@ -112,11 +213,9 @@
     startBtn.disabled = true;
     stopBtn.disabled = false;
 
-    // Get media
     stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
     video.srcObject = stream;
 
-    // Size canvas to video once metadata is loaded
     await new Promise(res => {
       if (video.readyState >= 2) return res();
       video.onloadedmetadata = () => res();
@@ -124,60 +223,55 @@
     cvs.width = video.videoWidth || 640;
     cvs.height = video.videoHeight || 480;
 
-    // WS
     ws = new WebSocket(WS_URL);
     ws.onmessage = (ev) => {
       const data = JSON.parse(ev.data);
-      const lvl = data.audio_level ?? 0;
-      setGlow(lvl);
 
-      voiceLabel.textContent = `${data.voice?.label ?? '—'} (${fmtProb(data.voice?.probs)})`;
-      faceLabel.textContent  = `${data.face?.label ?? '—'} (${fmtProb(data.face?.probs)})`;
-      fusedLabel.textContent = `${data.fused?.label ?? '—'} (${fmtProb(data.fused?.probs)})`;
+      // Update labels with capitalization
+      voiceLabel.textContent = `${cap(data.voice?.label)} (${fmtProb(data.voice?.probs)})`;
+      faceLabel.textContent  = `${cap(data.face?.label)} (${fmtProb(data.face?.probs)})`;
+      fusedLabel.textContent = `${cap(data.fused?.label)} (${fmtProb(data.fused?.probs)})`;
 
+      // Build Top-5 from fused probs (fallback to server's topk if present but short)
+      const probs = (data.fused && Array.isArray(data.fused.probs)) ? data.fused.probs : [];
+      let idxs = [];
+      if (probs.length === LABELS.length) {
+        idxs = [...probs.keys()].sort((a,b) => probs[b]-probs[a]).slice(0,5);
+      } else if (Array.isArray(data.topk) && data.topk.length) {
+        // fallback: use server-provided topk (might be top3)
+        idxs = data.topk.map(t => LABELS.indexOf(cap(t.label))).filter(i => i >= 0);
+      }
       topkEl.innerHTML = '';
-      (data.topk || []).forEach(t => {
+      idxs.forEach(i => {
         const li = document.createElement('li');
-        li.innerHTML = `<span>${t.label}</span><span>${(t.prob*100).toFixed(1)}%</span>`;
+        const p = probs.length ? (probs[i]*100).toFixed(1) + '%' : '';
+        li.innerHTML = `<span>${LABELS[i]}</span><span class="pill">${p}</span>`;
         topkEl.appendChild(li);
       });
 
-      // Fetch empathetic reply occasionally when confidence is decent
-      const fusedProb = (data.fused?.probs || []);
-      const maxP = fusedProb.length ? Math.max(...fusedProb) : 0;
-      if (maxP > 0.6) {
-        fetch('/reply', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ emotion: data.fused.label, topk: data.topk, context: "" })
-        }).then(r => r.json()).then(j => { replyEl.textContent = j.reply; }).catch(()=>{});
-      }
+      // Optional: glow (kept functional, but no hint text in UI)
+      const lvl = data.audio_level ?? 0;
+      setGlow(Math.min(1, Math.max(0, lvl)));
     };
-    ws.onopen = () => {
-      startFrameLoop();
-    };
-    ws.onclose = () => {
-      if (anim) cancelAnimationFrame(anim);
-    };
+    ws.onopen = () => { startFrameLoop(); };
+    ws.onclose = () => { if (anim) cancelAnimationFrame(anim); };
 
-    // Audio Worklet (float32 @ 48k → downsample → Int16 → base64)
+    // Audio Worklet (48k → ~16k → Int16 → base64)
     audioCtx = new AudioContext({ sampleRate: 48000 });
     await audioCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([`
       class DownsampleProcessor extends AudioWorkletProcessor {
-        constructor() { super(); this._buf = []; this._decim = 3; this._acc = 0; }
-        process(inputs, outputs, params) {
+        constructor() { super(); this._buf = []; this._decim = 3; }
+        process(inputs) {
           const input = inputs[0];
           if (!input || input.length === 0) return true;
-          const ch0 = input[0]; // Float32Array @ 48k
-          // crude decimation 48k -> ~16k (keep every 3rd sample)
+          const ch0 = input[0];
           for (let i = 0; i < ch0.length; i += this._decim) {
             let s = ch0[i];
             s = Math.max(-1, Math.min(1, s));
             const s16 = s < 0 ? s * 0x8000 : s * 0x7fff;
             this._buf.push(s16|0);
           }
-          // Post every ~100ms ≈ 1600 samples @16k
-          if (this._buf.length >= 1600) {
+          if (this._buf.length >= 1600) { // ~100ms @16k
             const chunk = this._buf.splice(0, 1600);
             this.port.postMessage(chunk);
           }
@@ -187,7 +281,7 @@
       registerProcessor('downsample-processor', DownsampleProcessor);
     `], { type: 'application/javascript' })));
 
-    audioNode = audioCtx.createMediaStreamSource(stream);
+    const src = audioCtx.createMediaStreamSource(stream);
     workletNode = new AudioWorkletNode(audioCtx, 'downsample-processor');
     workletNode.port.onmessage = (ev) => {
       const int16arr = ev.data;
@@ -195,20 +289,8 @@
         const audio_b16 = btoa(String.fromCharCode(...new Uint8Array(new Int16Array(int16arr).buffer)));
         ws.send(JSON.stringify({ audio_b16 }));
       }
-      // Local glow fallback (rough): compute RMS client-side
-      let sum = 0;
-      for (let i=0;i<int16arr.length;i++){ const v=int16arr[i]/32768; sum += v*v; }
-      const rms = Math.sqrt(sum / int16arr.length);
-      setGlow(Math.min(1, rms*3));
     };
-    audioNode.connect(workletNode).connect(audioCtx.destination);
-
-    function fmtProb(arr){
-      if (!arr || !arr.length) return "—";
-      const m = Math.max(...arr);
-      return (m*100).toFixed(1) + "%";
-    }
-    window.fmtProb = fmtProb;
+    src.connect(workletNode).connect(audioCtx.destination);
   }
 
   function stop() {
@@ -216,15 +298,21 @@
     stopBtn.disabled = true;
     if (ws) { ws.close(); ws = null; }
     if (anim) { cancelAnimationFrame(anim); anim = null; }
-    if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
     if (workletNode) { workletNode.port.onmessage = null; try{ workletNode.disconnect(); }catch{} workletNode=null; }
-    if (audioNode) { try{ audioNode.disconnect(); }catch{} audioNode=null; }
     if (audioCtx) { audioCtx.close(); audioCtx = null; }
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    setGlow(0);
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    // reset any visual state
+    document.getElementById('topk').innerHTML = '';
+    document.getElementById('voiceLabel').textContent = '—';
+    document.getElementById('faceLabel').textContent = '—';
+    document.getElementById('fusedLabel').textContent = '—';
+    wrap.style.setProperty('--glow', '0px');
+  }
+
+  function fmtProb(arr){
+    if (!arr || !arr.length) return "—";
+    const m = Math.max(...arr);
+    return (m*100).toFixed(1) + "%";
   }
 
   document.getElementById('startBtn').onclick = start;
