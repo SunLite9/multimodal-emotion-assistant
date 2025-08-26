@@ -1,0 +1,28 @@
+﻿# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Data / weights / artifacts
+weights/
+data/
+*.pt
+*.pth
+*.h5
+*.ckpt
+*.onnx
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Env files
+.env

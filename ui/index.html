@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Multimodal Emotion Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --glow: 0px;
+    --glow-color: rgba(0, 200, 0, 0.8);
+  }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 20px; background: #0b1020; color: #e7e9f3; }
+  .row { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  #vidWrap {
+    position: relative; width: 480px; max-width: 90vw; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 0 var(--glow) var(--glow-color);
+    transition: box-shadow 120ms linear;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+  video { width: 100%; height: 100%; object-fit: cover; background: #000; }
+  canvas { display: none; }
+  button {
+    background: #5566ff; color: white; border: none; padding: 12px 16px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .card { background: #121833; border: 1px solid #222b55; border-radius: 12px; padding: 12px 16px; min-width: 260px; }
+  .kvs { margin: 0; padding: 0; list-style: none; }
+  .kvs li { display: flex; justify-content: space-between; padding: 2px 0; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #1a224a; border: 1px solid #2a3a7a; }
+  .label { font-weight: 700; }
+  .small { opacity: 0.8; font-size: 14px; }
+</style>
+</head>
+<body>
+  <h2>Multimodal Emotion Assistant</h2>
+  <p class="small">One button to start audio + video. The green halo grows with volume; red means no audio.</p>
+
+  <div class="row">
+    <div>
+      <div id="vidWrap"><video id="video" autoplay playsinline muted></video></div>
+      <div style="margin-top: 10px;">
+        <button id="startBtn">Start</button>
+        <button id="stopBtn" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div><span class="label">Voice:</span> <span id="voiceLabel">—</span></div>
+      <div><span class="label">Face:</span> <span id="faceLabel">—</span></div>
+      <div><span class="label">Fused:</span> <span id="fusedLabel">—</span></div>
+      <hr/>
+      <div class="small">Top-3</div>
+      <ul class="kvs" id="topk"></ul>
+      <hr/>
+      <div class="small">Empathetic Reply</div>
+      <div id="reply" class="pill">—</div>
+    </div>
+  </div>
+
+  <canvas id="cvs" width="640" height="480"></canvas>
+
+<script>
+(async function(){
+  const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const video = document.getElementById('video');
+  const cvs = document.getElementById('cvs');
+  const ctx = cvs.getContext('2d');
+  const wrap = document.getElementById('vidWrap');
+
+  const faceLabel = document.getElementById('faceLabel');
+  const voiceLabel = document.getElementById('voiceLabel');
+  const fusedLabel = document.getElementById('fusedLabel');
+  const topkEl = document.getElementById('topk');
+  const replyEl = document.getElementById('reply');
+
+  let ws = null, stream = null, anim = null, sendTimer = null;
+  let audioNode = null, workletNode = null, audioCtx = null;
+
+  // Encode Int16 array to base64
+  function b64FromInt16(int16arr) {
+    return btoa(String.fromCharCode(...new Uint8Array(new Int16Array(int16arr).buffer)));
+  }
+  // Throttle frame capture to ~5 fps
+  function startFrameLoop() {
+    let last = 0;
+    function step(ts) {
+      if (!ws) return;
+      if (!last || ts - last > 180) {
+        last = ts;
+        const w = cvs.width, h = cvs.height;
+        ctx.drawImage(video, 0, 0, w, h);
+        const dataURL = cvs.toDataURL('image/jpeg', 0.6);
+        const jpeg_b64 = dataURL.split(',')[1];
+        ws.send(JSON.stringify({ jpeg_b64 })); // we can send without audio here; audio arrives via worklet messages
+      }
+      anim = requestAnimationFrame(step);
+    }
+    anim = requestAnimationFrame(step);
+  }
+
+  function setGlow(level) {
+    // level in [0,1], map to px; colour red if near zero
+    const px = Math.round(40 * level);
+    const color = (level < 0.05) ? 'rgba(220,0,0,0.85)' : 'rgba(0,200,0,0.8)';
+    wrap.style.setProperty('--glow', px + 'px');
+    wrap.style.setProperty('--glow-color', color);
+  }
+
+  async function start() {
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+
+    // Get media
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
+    video.srcObject = stream;
+
+    // Size canvas to video once metadata is loaded
+    await new Promise(res => {
+      if (video.readyState >= 2) return res();
+      video.onloadedmetadata = () => res();
+    });
+    cvs.width = video.videoWidth || 640;
+    cvs.height = video.videoHeight || 480;
+
+    // WS
+    ws = new WebSocket(WS_URL);
+    ws.onmessage = (ev) => {
+      const data = JSON.parse(ev.data);
+      const lvl = data.audio_level ?? 0;
+      setGlow(lvl);
+
+      voiceLabel.textContent = `${data.voice?.label ?? '—'} (${fmtProb(data.voice?.probs)})`;
+      faceLabel.textContent  = `${data.face?.label ?? '—'} (${fmtProb(data.face?.probs)})`;
+      fusedLabel.textContent = `${data.fused?.label ?? '—'} (${fmtProb(data.fused?.probs)})`;
+
+      topkEl.innerHTML = '';
+      (data.topk || []).forEach(t => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${t.label}</span><span>${(t.prob*100).toFixed(1)}%</span>`;
+        topkEl.appendChild(li);
+      });
+
+      // Fetch empathetic reply occasionally when confidence is decent
+      const fusedProb = (data.fused?.probs || []);
+      const maxP = fusedProb.length ? Math.max(...fusedProb) : 0;
+      if (maxP > 0.6) {
+        fetch('/reply', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ emotion: data.fused.label, topk: data.topk, context: "" })
+        }).then(r => r.json()).then(j => { replyEl.textContent = j.reply; }).catch(()=>{});
+      }
+    };
+    ws.onopen = () => {
+      startFrameLoop();
+    };
+    ws.onclose = () => {
+      if (anim) cancelAnimationFrame(anim);
+    };
+
+    // Audio Worklet (float32 @ 48k → downsample → Int16 → base64)
+    audioCtx = new AudioContext({ sampleRate: 48000 });
+    await audioCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([`
+      class DownsampleProcessor extends AudioWorkletProcessor {
+        constructor() { super(); this._buf = []; this._decim = 3; this._acc = 0; }
+        process(inputs, outputs, params) {
+          const input = inputs[0];
+          if (!input || input.length === 0) return true;
+          const ch0 = input[0]; // Float32Array @ 48k
+          // crude decimation 48k -> ~16k (keep every 3rd sample)
+          for (let i = 0; i < ch0.length; i += this._decim) {
+            let s = ch0[i];
+            s = Math.max(-1, Math.min(1, s));
+            const s16 = s < 0 ? s * 0x8000 : s * 0x7fff;
+            this._buf.push(s16|0);
+          }
+          // Post every ~100ms ≈ 1600 samples @16k
+          if (this._buf.length >= 1600) {
+            const chunk = this._buf.splice(0, 1600);
+            this.port.postMessage(chunk);
+          }
+          return true;
+        }
+      }
+      registerProcessor('downsample-processor', DownsampleProcessor);
+    `], { type: 'application/javascript' })));
+
+    audioNode = audioCtx.createMediaStreamSource(stream);
+    workletNode = new AudioWorkletNode(audioCtx, 'downsample-processor');
+    workletNode.port.onmessage = (ev) => {
+      const int16arr = ev.data;
+      if (ws && ws.readyState === 1) {
+        const audio_b16 = btoa(String.fromCharCode(...new Uint8Array(new Int16Array(int16arr).buffer)));
+        ws.send(JSON.stringify({ audio_b16 }));
+      }
+      // Local glow fallback (rough): compute RMS client-side
+      let sum = 0;
+      for (let i=0;i<int16arr.length;i++){ const v=int16arr[i]/32768; sum += v*v; }
+      const rms = Math.sqrt(sum / int16arr.length);
+      setGlow(Math.min(1, rms*3));
+    };
+    audioNode.connect(workletNode).connect(audioCtx.destination);
+
+    function fmtProb(arr){
+      if (!arr || !arr.length) return "—";
+      const m = Math.max(...arr);
+      return (m*100).toFixed(1) + "%";
+    }
+    window.fmtProb = fmtProb;
+  }
+
+  function stop() {
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    if (ws) { ws.close(); ws = null; }
+    if (anim) { cancelAnimationFrame(anim); anim = null; }
+    if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
+    if (workletNode) { workletNode.port.onmessage = null; try{ workletNode.disconnect(); }catch{} workletNode=null; }
+    if (audioNode) { try{ audioNode.disconnect(); }catch{} audioNode=null; }
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    setGlow(0);
+  }
+
+  document.getElementById('startBtn').onclick = start;
+  document.getElementById('stopBtn').onclick = stop;
+})();
+</script>
+</body>
+</html>
