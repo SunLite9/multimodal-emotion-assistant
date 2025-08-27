@@ -35,38 +35,23 @@ def late_fusion(face_probs, voice_probs, w_face=0.4, w_voice=0.6):
     p = p / (p.sum() + 1e-8)
     return p.tolist()
 
-
-# --- RAVDESS helpers ---
-# Filenames like: "03-01-06-01-02-01-12.wav"
-# fields: modality-vchannel-emotion-intensity-statement-repetition-actor
-
-def ravdess_emotion_from_filename(fname: str, merge_calm_to_neutral: bool = True) -> str:
+def ravdess_emotion_from_filename(filename: str, merge_calm_to_neutral: bool = True) -> str:
     """
-    Returns one of: angry, disgust, fear, happy, neutral, sad, surprise
-    If merge_calm_to_neutral=False, returns one of the 8 RAVDESS emotions
-    (neutral, calm, happy, sad, angry, fearful, disgust, surprised).
+    Parse RAVDESS 7-part filename, e.g. 03-01-06-01-02-01-12.wav
+    Emotion code (3rd field):
+      01 neutral, 02 calm, 03 happy, 04 sad, 05 angry, 06 fearful, 07 disgust, 08 surprised.
     """
     import os
-    base = os.path.basename(fname)
-    name, _ = os.path.splitext(base)
-    parts = name.split("-")
+    base = os.path.splitext(os.path.basename(filename))[0]
+    parts = base.split("-")
     if len(parts) < 3:
-        raise ValueError(f"Unexpected RAVDESS filename: {fname}")
-    emotion_code = int(parts[2])  # 01..08
-
-    # map RAVDESS code -> canonical label
-    raw_map = {
-        1: "neutral",
-        2: "calm",
-        3: "happy",
-        4: "sad",
-        5: "angry",
-        6: "fear",
-        7: "disgust",
-        8: "surprise",
+        return "neutral"
+    emo_id = parts[2]
+    mapping = {
+        "01": "neutral", "02": "calm", "03": "happy", "04": "sad",
+        "05": "angry",   "06": "fear", "07": "disgust", "08": "surprise",
     }
-    lab = raw_map.get(emotion_code, "neutral")
-
+    lab = mapping.get(emo_id, "neutral")
     if merge_calm_to_neutral and lab == "calm":
         lab = "neutral"
     return lab
