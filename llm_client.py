@@ -1,8 +1,7 @@
 import os
 from typing import List, Dict
 
-# Minimal wrapper. If no OPENAI_API_KEY, return a canned response.
-# You can drop in your preferred LLM client later.
+
 
 async def get_empathetic_reply(emotion_label: str, topk: List[Dict], recent_transcript: str, model="gpt-4o-mini") -> str:
     api_key = os.getenv("OPENAI_API_KEY", "")

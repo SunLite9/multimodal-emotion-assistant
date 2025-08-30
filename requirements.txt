@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-numpy
+numpy==2.2.6
 opencv-python
 mediapipe
 librosa
@@ -10,3 +10,11 @@ torchvision
 torchaudio
 pydantic
 python-dotenv
+
+
+timm==0.9.16
+hsemotion==0.3.0
+
+facenet-pytorch>=2.5.3
+torch>=2.3.0 ; platform_system != "Darwin"  # adjust if you already pin torch elsewhere
+torchvision>=0.18.0 ; platform_system != "Darwin"
