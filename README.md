@@ -1,4 +1,4 @@
-# Multimodal Emotion Assistant
+# Real-Time Multimodal Emotion Recognition AI
 
 Real-time, browser→server demo that infers **audio**, **visual**, and **fused** emotions. The frontend streams mic/webcam to a **FastAPI** backend (drop-in swappable with Flask). The server runs lightweight inference and streams predictions back to the UI.
 
@@ -116,3 +116,4 @@ uvicorn app:app --reload
 - **MediaPipe** — Face detection.
 - **FastAPI / Uvicorn** — WebSocket server runtime.
 - **NumPy / Librosa / PyTorch / timm** — DSP & model tooling.
+
